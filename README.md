@@ -26,8 +26,9 @@ That will:
 1. Back up any existing `~/.config/hypr/custom/` (and fastfetch) under `~/.config/hypr/backups/`
 2. Install Hyprland custom files from `hypr/custom/`
 3. Install `fastfetch/config.jsonc` → `~/.config/fastfetch/`
-4. Copy static wallpapers → `~/wallpapers`
-5. Run `hyprctl reload` if available
+4. Add a `fastfetch` startup hook to fish (`config.fish`) and zsh (`.zshrc`)
+5. Copy static wallpapers → `~/wallpapers`
+6. Run `hyprctl reload` if available
 
 ### Useful flags
 
@@ -35,7 +36,8 @@ That will:
 ./apply.sh --dry-run          # preview only
 ./apply.sh --keybinds-only    # only keybinds.lua + variables.lua
 ./apply.sh --no-wallpapers    # skip ~/wallpapers
-./apply.sh --no-fastfetch     # skip fastfetch config
+./apply.sh --no-fastfetch     # skip fastfetch config + shell hook
+./apply.sh --no-shell-hook    # install config, but don't edit fish/zsh
 ./apply.sh --no-execs         # skip autostart
 ./apply.sh --no-reload        # don't call hyprctl reload
 ```

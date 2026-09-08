@@ -22,6 +22,7 @@ WITH_EXECS=true
 WITH_ENV=true
 WITH_FASTFETCH=true
 WITH_WALLPAPERS=true
+WITH_SHELL_HOOK=true
 RELOAD=true
 
 usage() {
@@ -32,6 +33,9 @@ Installs this repo's hypr/custom/* into ~/.config/hypr/custom/
 (after backing up any existing custom/ directory), plus fastfetch
 config and static wallpapers into ~/wallpapers by default.
 
+Also adds a fastfetch startup line to fish/zsh so it runs when you
+open a terminal (idempotent; uses markers so re-running is safe).
+
 Options:
   --dry-run          Show what would be done, change nothing
   --keybinds-only    Only install keybinds.lua + variables.lua
@@ -39,8 +43,9 @@ Options:
   --no-general       Skip general.lua (gaps/blur/animations)
   --no-execs         Skip execs.lua (autostart)
   --no-env           Skip env.lua
-  --no-fastfetch     Skip ~/.config/fastfetch
+  --no-fastfetch     Skip ~/.config/fastfetch and shell startup hook
   --no-wallpapers    Skip ~/wallpapers
+  --no-shell-hook    Skip adding fastfetch to fish/zsh
   --no-reload        Do not run hyprctl reload
   -h, --help         Show this help
 
@@ -62,13 +67,18 @@ while [[ $# -gt 0 ]]; do
       WITH_ENV=false
       WITH_FASTFETCH=false
       WITH_WALLPAPERS=false
+      WITH_SHELL_HOOK=false
       ;;
     --no-rules) WITH_RULES=false ;;
     --no-general) WITH_GENERAL=false ;;
     --no-execs) WITH_EXECS=false ;;
     --no-env) WITH_ENV=false ;;
-    --no-fastfetch) WITH_FASTFETCH=false ;;
+    --no-fastfetch)
+      WITH_FASTFETCH=false
+      WITH_SHELL_HOOK=false
+      ;;
     --no-wallpapers) WITH_WALLPAPERS=false ;;
+    --no-shell-hook) WITH_SHELL_HOOK=false ;;
     --no-reload) RELOAD=false ;;
     -h|--help) usage; exit 0 ;;
     *)
@@ -85,6 +95,69 @@ run() {
     echo "DRY-RUN: $*"
   else
     "$@"
+  fi
+}
+
+# Idempotently ensure a marked fastfetch block exists in a shell rc file.
+ensure_fastfetch_hook() {
+  local file="$1"
+  local kind="$2" # fish|zsh
+  local begin="# >>> ii-hypr-custom fastfetch >>>"
+  local end="# <<< ii-hypr-custom fastfetch <<<"
+  local block=""
+
+  case "$kind" in
+    fish)
+      block=$(cat <<EOF
+$begin
+# Run fastfetch in interactive terminals (managed by ii-hypr-custom/apply.sh)
+if status is-interactive
+    and command -q fastfetch
+    fastfetch
+end
+$end
+EOF
+)
+      ;;
+    zsh)
+      block=$(cat <<EOF
+$begin
+# Run fastfetch in interactive terminals (managed by ii-hypr-custom/apply.sh)
+if [[ -o interactive ]] && command -v fastfetch >/dev/null 2>&1; then
+  fastfetch
+fi
+$end
+EOF
+)
+      ;;
+    *)
+      echo "error: unknown shell kind '$kind'" >&2
+      return 1
+      ;;
+  esac
+
+  if [[ -f "$file" ]] && grep -qF "$begin" "$file" 2>/dev/null; then
+    echo "    already present in $file"
+    return 0
+  fi
+
+  # Skip if an existing fastfetch startup is already there (avoid double-run)
+  if [[ -f "$file" ]] && grep -Eq '^[[:space:]]*fastfetch([[:space:]]|$)' "$file" 2>/dev/null; then
+    echo "    $file already runs fastfetch; leaving as-is"
+    return 0
+  fi
+
+  echo "    adding hook to $file"
+  if $DRY_RUN; then
+    echo "DRY-RUN: append fastfetch hook to $file"
+    return 0
+  fi
+
+  mkdir -p "$(dirname "$file")"
+  if [[ -f "$file" ]]; then
+    printf '\n%s\n' "$block" >>"$file"
+  else
+    printf '%s\n' "$block" >"$file"
   fi
 }
 
@@ -146,6 +219,14 @@ if $WITH_FASTFETCH; then
   else
     echo "warning: no fastfetch/config.jsonc in repo; skipping"
   fi
+fi
+
+if $WITH_SHELL_HOOK; then
+  echo "==> Ensuring fastfetch runs on terminal open"
+  FISH_CFG="${XDG_CONFIG_HOME:-$HOME/.config}/fish/config.fish"
+  ZSH_CFG="$HOME/.zshrc"
+  ensure_fastfetch_hook "$FISH_CFG" fish
+  ensure_fastfetch_hook "$ZSH_CFG" zsh
 fi
 
 if $WITH_WALLPAPERS; then
