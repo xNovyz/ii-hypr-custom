@@ -1,3 +1,6 @@
+# Ignore large / generated junk if added later
 *.pkg.tar.*
 .DS_Store
 *~
+*.mp4
+*.webm

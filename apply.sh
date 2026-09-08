@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Apply Illogical Impulse Hyprland custom overlays (keybinds, look, apps, rules).
+# Apply Illogical Impulse Hyprland custom overlays (keybinds, look, apps, rules),
+# plus optional fastfetch config and static wallpapers.
 # Requires: Illogical Impulse already installed (hyprland.lua sourcing custom/*).
 set -euo pipefail
 
@@ -9,11 +10,18 @@ DEST="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/custom"
 BACKUP_ROOT="${XDG_CONFIG_HOME:-$HOME/.config}/hypr/backups"
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 
+FASTFETCH_SRC="$REPO_ROOT/fastfetch"
+FASTFETCH_DEST="${XDG_CONFIG_HOME:-$HOME/.config}/fastfetch"
+WALLPAPERS_SRC="$REPO_ROOT/wallpapers"
+WALLPAPERS_DEST="${WALLPAPERS_DEST:-$HOME/wallpapers}"
+
 DRY_RUN=false
 WITH_RULES=true
 WITH_GENERAL=true
 WITH_EXECS=true
 WITH_ENV=true
+WITH_FASTFETCH=true
+WITH_WALLPAPERS=true
 RELOAD=true
 
 usage() {
@@ -21,22 +29,26 @@ usage() {
 Usage: ./apply.sh [options]
 
 Installs this repo's hypr/custom/* into ~/.config/hypr/custom/
-(after backing up any existing custom/ directory).
+(after backing up any existing custom/ directory), plus fastfetch
+config and static wallpapers into ~/wallpapers by default.
 
 Options:
-  --dry-run         Show what would be done, change nothing
-  --keybinds-only   Only install keybinds.lua + variables.lua
-  --no-rules        Skip rules.lua
-  --no-general      Skip general.lua (gaps/blur/animations)
-  --no-execs        Skip execs.lua (autostart)
-  --no-env          Skip env.lua
-  --no-reload       Do not run hyprctl reload
-  -h, --help        Show this help
+  --dry-run          Show what would be done, change nothing
+  --keybinds-only    Only install keybinds.lua + variables.lua
+  --no-rules         Skip rules.lua
+  --no-general       Skip general.lua (gaps/blur/animations)
+  --no-execs         Skip execs.lua (autostart)
+  --no-env           Skip env.lua
+  --no-fastfetch     Skip ~/.config/fastfetch
+  --no-wallpapers    Skip ~/wallpapers
+  --no-reload        Do not run hyprctl reload
+  -h, --help         Show this help
 
 Examples:
   ./apply.sh
   ./apply.sh --keybinds-only
   ./apply.sh --dry-run
+  ./apply.sh --no-wallpapers
 EOF
 }
 
@@ -48,11 +60,15 @@ while [[ $# -gt 0 ]]; do
       WITH_GENERAL=false
       WITH_EXECS=false
       WITH_ENV=false
+      WITH_FASTFETCH=false
+      WITH_WALLPAPERS=false
       ;;
     --no-rules) WITH_RULES=false ;;
     --no-general) WITH_GENERAL=false ;;
     --no-execs) WITH_EXECS=false ;;
     --no-env) WITH_ENV=false ;;
+    --no-fastfetch) WITH_FASTFETCH=false ;;
+    --no-wallpapers) WITH_WALLPAPERS=false ;;
     --no-reload) RELOAD=false ;;
     -h|--help) usage; exit 0 ;;
     *)
@@ -100,7 +116,7 @@ if [[ -d "$DEST" ]] && [[ -n "$(ls -A "$DEST" 2>/dev/null || true)" ]]; then
   run cp -a "$DEST" "$BACKUP_DIR"
 fi
 
-echo "==> Installing files:"
+echo "==> Installing Hyprland custom files:"
 run mkdir -p "$DEST/scripts"
 for f in "${FILES[@]}"; do
   echo "    $f"
@@ -111,6 +127,41 @@ if [[ -f "$SRC/scripts/__restore_video_wallpaper.sh" ]]; then
   echo "    scripts/__restore_video_wallpaper.sh"
   run cp -f "$SRC/scripts/__restore_video_wallpaper.sh" "$DEST/scripts/__restore_video_wallpaper.sh"
   run chmod +x "$DEST/scripts/__restore_video_wallpaper.sh"
+fi
+
+if $WITH_FASTFETCH; then
+  if [[ -f "$FASTFETCH_SRC/config.jsonc" ]]; then
+    echo "==> Installing fastfetch config -> $FASTFETCH_DEST"
+    if [[ -d "$FASTFETCH_DEST" ]] && [[ -n "$(ls -A "$FASTFETCH_DEST" 2>/dev/null || true)" ]]; then
+      echo "    backup -> $BACKUP_ROOT/fastfetch-$TIMESTAMP"
+      run mkdir -p "$BACKUP_ROOT"
+      run cp -a "$FASTFETCH_DEST" "$BACKUP_ROOT/fastfetch-$TIMESTAMP"
+    fi
+    run mkdir -p "$FASTFETCH_DEST"
+    run cp -f "$FASTFETCH_SRC/config.jsonc" "$FASTFETCH_DEST/config.jsonc"
+    if [[ -d "$FASTFETCH_SRC/images" ]]; then
+      run mkdir -p "$FASTFETCH_DEST/images"
+      run cp -a "$FASTFETCH_SRC/images/." "$FASTFETCH_DEST/images/"
+    fi
+  else
+    echo "warning: no fastfetch/config.jsonc in repo; skipping"
+  fi
+fi
+
+if $WITH_WALLPAPERS; then
+  if [[ -d "$WALLPAPERS_SRC" ]] && [[ -n "$(ls -A "$WALLPAPERS_SRC" 2>/dev/null || true)" ]]; then
+    count="$(find "$WALLPAPERS_SRC" -maxdepth 1 -type f | wc -l)"
+    echo "==> Installing $count static wallpaper(s) -> $WALLPAPERS_DEST"
+    run mkdir -p "$WALLPAPERS_DEST"
+    # Overwrite matching names; leave other files (e.g. video wallpapers) alone
+    if $DRY_RUN; then
+      echo "DRY-RUN: cp -f $WALLPAPERS_SRC/* $WALLPAPERS_DEST/"
+    else
+      cp -f "$WALLPAPERS_SRC"/* "$WALLPAPERS_DEST/"
+    fi
+  else
+    echo "warning: no wallpapers/ in repo; skipping"
+  fi
 fi
 
 echo
@@ -131,4 +182,4 @@ fi
 
 echo
 echo "Done. Keybind summary: see KEYBINDS.md"
-echo "Restore backup with:  cp -a $BACKUP_ROOT/custom-YYYYMMDD-HHMMSS/. $DEST/"
+echo "Restore Hypr custom with:  cp -a $BACKUP_ROOT/custom-YYYYMMDD-HHMMSS/. $DEST/"

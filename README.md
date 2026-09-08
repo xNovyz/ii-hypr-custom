@@ -2,7 +2,7 @@
 
 Portable copy of the Ambxst-style Hyprland customizations used with
 [Illogical Impulse](https://github.com/end-4/dots-hyprland): keybinds, apps,
-look-and-feel, window rules, and light autostart.
+look-and-feel, window rules, light autostart, fastfetch, and static wallpapers.
 
 Designed to drop onto a laptop (or any other machine) that already has II installed.
 
@@ -15,30 +15,34 @@ Designed to drop onto a laptop (or any other machine) that already has II instal
 ## Quick start
 
 ```bash
-git clone <this-repo> ~/ii-hypr-custom
-cd ~/ii-hypr-custom
+git clone git@github.com:xNovyz/ii-hypr-custom.git
+cd ii-hypr-custom
 chmod +x apply.sh
 ./apply.sh
 ```
 
 That will:
 
-1. Back up any existing `~/.config/hypr/custom/` under `~/.config/hypr/backups/`
-2. Install the files from `hypr/custom/`
-3. Run `hyprctl reload` if available
+1. Back up any existing `~/.config/hypr/custom/` (and fastfetch) under `~/.config/hypr/backups/`
+2. Install Hyprland custom files from `hypr/custom/`
+3. Install `fastfetch/config.jsonc` → `~/.config/fastfetch/`
+4. Copy static wallpapers → `~/wallpapers`
+5. Run `hyprctl reload` if available
 
 ### Useful flags
 
 ```bash
 ./apply.sh --dry-run          # preview only
 ./apply.sh --keybinds-only    # only keybinds.lua + variables.lua
+./apply.sh --no-wallpapers    # skip ~/wallpapers
+./apply.sh --no-fastfetch     # skip fastfetch config
 ./apply.sh --no-execs         # skip autostart
 ./apply.sh --no-reload        # don't call hyprctl reload
 ```
 
 ## What's included
 
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
 | `hypr/custom/keybinds.lua` | Ambxst-style binds + window/workspace management |
 | `hypr/custom/variables.lua` | `terminal` / `fileManager` / `browser` |
@@ -46,9 +50,11 @@ That will:
 | `hypr/custom/env.lua` | Wayland / cursor env vars |
 | `hypr/custom/rules.lua` | Opacity + GLava rules (portable) |
 | `hypr/custom/execs.lua` | EasyEffects autostart (if installed) |
+| `fastfetch/config.jsonc` | Fastfetch layout |
+| `wallpapers/` | Static images only (jpg/png/webp/gif; no videos) |
 | `examples/execs.desktop.lua` | Desktop PC autostart (sunshine, surge, awww) |
 
-**Not included:** `monitors.lua` (machine-specific). Configure monitors on the laptop with nwg-displays or II defaults.
+**Not included:** `monitors.lua` (machine-specific), video wallpapers (`*.mp4`).
 
 ## After applying
 
@@ -56,6 +62,7 @@ That will:
 2. See [KEYBINDS.md](KEYBINDS.md) for the bind map
 3. Optional desktop autostart:  
    `cp examples/execs.desktop.lua ~/.config/hypr/custom/execs.lua`
+4. Pick a wallpaper in II (`Super+B`) from `~/wallpapers`
 
 ## Restore
 
