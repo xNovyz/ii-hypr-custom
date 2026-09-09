@@ -1,0 +1,14 @@
+[Unit]
+Description=Service for qpwgraph
+After=graphical-session.target pipewire.service pipewire-pulse.service
+Wants=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/qpwgraph --minimized
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target
+
